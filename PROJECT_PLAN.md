@@ -54,9 +54,9 @@
 
 #### Day 6-7
 - [x] Implement player character rendering
-- [ ] Add player name display
+- [x] Add player name display
 - [x] Create lobby UI for game creation/joining
-- [ ] Implement session management UI
+- [x] Implement session management UI
 - [x] Test and optimize multiplayer experience
 
 ### Phase 3: Core Gameplay Loop (Days 8-14)
@@ -266,6 +266,6 @@ Polished experience with optimized performance ready for deployment
 
 ---
 
-**Version:** 1.0  
-**Last Updated:** March 22, 2025
+**Version:** 1.1  
+**Last Updated:** May 9, 2024
 **Author:** Crate and Crypt Team 

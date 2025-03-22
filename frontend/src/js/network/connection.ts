@@ -63,7 +63,7 @@ export function initNetwork() {
     const roomIdFromUrl = urlParams.get('roomId');
     
     // Generate a temporary player ID for this session
-    const tempPlayerId = `temp-player-${Math.floor(Math.random() * 10000)}`;
+    const tempPlayerId = `player${Math.floor(Math.random() * 1000)}`;
     window.gameState.playerId = tempPlayerId;
     
     console.log(`Generated temporary player ID: ${tempPlayerId}`);

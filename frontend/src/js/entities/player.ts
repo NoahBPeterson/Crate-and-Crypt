@@ -12,6 +12,7 @@ export class Player {
     moveSpeed: number = 0.08;
     turnSpeed: number = 0.02;
     isFirstPerson: boolean = true;
+    nameLabel: THREE.Sprite | null = null;
     
     // Animation properties
     isMoving: boolean = false;
@@ -38,9 +39,87 @@ export class Player {
         this.isFirstPerson = isLocalPlayer; // Only local player starts in first person
         this.model.visible = !isLocalPlayer; // Remote players are always visible
         
+        // Create name label
+        this.createNameLabel(isLocalPlayer ? "YOU" : this.formatPlayerId(id));
+        
         this.updateCameraPosition();
         
         console.log(`Player ${id} created at position:`, this.position, isLocalPlayer ? '(local)' : '(remote)');
+    }
+
+    /**
+     * Format player ID to a more readable form
+     */
+    formatPlayerId(id: string): string {
+        // Remove the "temp-player-" prefix if present
+        let displayName = id;
+        if (displayName.startsWith('temp-player-')) {
+            displayName = displayName.replace('temp-player-', 'P');
+        }
+        
+        // If it's still a long ID, truncate it, but allow up to 10 chars
+        if (displayName.length > 10) {
+            return displayName.substring(0, 10);
+        }
+        return displayName;
+    }
+    
+    /**
+     * Create a name label above the player
+     */
+    createNameLabel(name: string): void {
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+        
+        if (!context) return;
+        
+        // Make canvas wider to accommodate longer names
+        canvas.width = 400;
+        canvas.height = 128;
+        
+        // Background color based on player type
+        const isLocalPlayer = (name === "YOU");
+        const bgColor = isLocalPlayer ? '#3070c0' : '#ff7700';
+        
+        // Draw background with rounded corners
+        context.fillStyle = bgColor;
+        roundRect(context, 0, 0, canvas.width, canvas.height, 20);
+        
+        // Draw text
+        context.font = 'Bold 50px Arial';
+        context.textAlign = 'center';
+        context.textBaseline = 'middle';
+        context.fillStyle = 'white';
+        context.fillText(name, canvas.width / 2, canvas.height / 2);
+        
+        // Create sprite material
+        const texture = new THREE.CanvasTexture(canvas);
+        const material = new THREE.SpriteMaterial({ map: texture });
+        
+        // Create sprite
+        const sprite = new THREE.Sprite(material);
+        sprite.scale.set(1.5, 0.5, 1);
+        sprite.position.set(0, 2.5, 0); // Position above head
+        
+        // Add to model
+        this.model.add(sprite);
+        this.nameLabel = sprite;
+        
+        // Helper function for rounded rectangles
+        function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, radius: number) {
+            ctx.beginPath();
+            ctx.moveTo(x + radius, y);
+            ctx.lineTo(x + width - radius, y);
+            ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+            ctx.lineTo(x + width, y + height - radius);
+            ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+            ctx.lineTo(x + radius, y + height);
+            ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+            ctx.lineTo(x, y + radius);
+            ctx.quadraticCurveTo(x, y, x + radius, y);
+            ctx.closePath();
+            ctx.fill();
+        }
     }
 
     /**

@@ -25,6 +25,9 @@ export class PlayerManager {
         // Add player model to scene
         this.localPlayer.addToScene(this.scene);
         
+        // Update the player count display
+        this.updatePlayerCountDisplay();
+        
         // For testing, create a second player
         this.createTestRemotePlayer();
         
@@ -33,10 +36,21 @@ export class PlayerManager {
     }
     
     /**
+     * Update player count display in the UI
+     */
+    updatePlayerCountDisplay(): void {
+        const totalPlayers = 1 + this.remotePlayers.size; // Local player + remote players
+        const playerCountElement = document.getElementById('player-count');
+        if (playerCountElement) {
+            playerCountElement.textContent = `Players: ${totalPlayers}`;
+        }
+    }
+    
+    /**
      * Create a test remote player for debugging
      */
     createTestRemotePlayer(): void {
-        const testPlayerId = "test-player-" + Math.floor(Math.random() * 1000);
+        const testPlayerId = "test" + Math.floor(Math.random() * 100);
         
         // Create test player at a position in front of the local player
         const testPosition = new THREE.Vector3(3, 0, -5);
@@ -110,6 +124,9 @@ export class PlayerManager {
             // Add to remote players map
             this.remotePlayers.set(playerId, player);
             
+            // Update the player count display
+            this.updatePlayerCountDisplay();
+            
             console.log(`Current remote players: ${this.remotePlayers.size}`, 
                         Array.from(this.remotePlayers.keys()));
         }
@@ -142,6 +159,9 @@ export class PlayerManager {
             const player = this.remotePlayers.get(playerId)!;
             this.scene.remove(player.model);
             this.remotePlayers.delete(playerId);
+            
+            // Update the player count display
+            this.updatePlayerCountDisplay();
         }
     }
     
