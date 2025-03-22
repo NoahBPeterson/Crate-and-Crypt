@@ -16,48 +16,48 @@
 ### Phase 1: Technical Foundation (Days 1-3)
 
 #### Day 1
-- [ ] Initialize project repository
-- [ ] Setup basic project structure
-- [ ] Configure Bun for frontend development
-- [ ] Create initial Three.js scene
-- [ ] Begin Rust server implementation with WebSocket support
+- [x] Initialize project repository
+- [x] Setup basic project structure
+- [x] Configure Bun for frontend development
+- [x] Create initial Three.js scene
+- [x] Begin Rust server implementation with WebSocket support
 
 #### Day 2
-- [ ] Implement basic room/lobby management in Rust backend
-- [ ] Create player session handling
-- [ ] Setup WebSocket communication between client and server
-- [ ] Develop message protocol for game state synchronization
-- [ ] Implement basic player connection/disconnection handling
+- [x] Implement basic room/lobby management in Rust backend
+- [x] Create player session handling
+- [x] Setup WebSocket communication between client and server
+- [x] Develop message protocol for game state synchronization
+- [x] Implement basic player connection/disconnection handling
 
 #### Day 3
-- [ ] Complete initial client-server communication
-- [ ] Test multiple connections
-- [ ] Refine connection stability
-- [ ] Add error handling for network operations
-- [ ] Create initial player representation
+- [x] Complete initial client-server communication
+- [x] Test multiple connections
+- [x] Refine connection stability
+- [x] Add error handling for network operations
+- [x] Create initial player representation
 
 ### Phase 2: Minimal Playable Experience (Days 4-7)
 
 #### Day 4
-- [ ] Implement first-person camera and controls
-- [ ] Create basic movement mechanics (WASD + mouse look)
+- [x] Implement first-person camera and controls
+- [x] Create basic movement mechanics (WASD + mouse look)
 - [ ] Add player collision with environment
-- [ ] Synchronize player movements across the network
-- [ ] Test movement with multiple clients
+- [x] Synchronize player movements across the network
+- [x] Test movement with multiple clients
 
 #### Day 5
-- [ ] Create a simple test environment
-- [ ] Implement basic lighting system
+- [x] Create a simple test environment
+- [x] Implement basic lighting system
 - [ ] Add environment collision detection
 - [ ] Create simple object/prop placement
-- [ ] Design initial UI elements
+- [x] Design initial UI elements
 
 #### Day 6-7
-- [ ] Implement player character rendering
+- [x] Implement player character rendering
 - [ ] Add player name display
-- [ ] Create lobby UI for game creation/joining
+- [x] Create lobby UI for game creation/joining
 - [ ] Implement session management UI
-- [ ] Test and optimize multiplayer experience
+- [x] Test and optimize multiplayer experience
 
 ### Phase 3: Core Gameplay Loop (Days 8-14)
 
@@ -231,7 +231,7 @@ src/
 ## 6. Target Milestones
 
 ### Milestone 1: Technical Prototype (Day 7)
-Players can connect to a shared environment and move around
+[x] Players can connect to a shared environment and move around
 
 ### Milestone 2: Gameplay Prototype (Day 14)
 Core gameplay loop implemented with one monster type and basic item interactions
@@ -266,6 +266,6 @@ Polished experience with optimized performance ready for deployment
 
 ---
 
-**Version:** 1.0
-**Last Updated:** [Current Date]
+**Version:** 1.1  
+**Last Updated:** May 9, 2024  
 **Author:** Crate and Crypt Team 

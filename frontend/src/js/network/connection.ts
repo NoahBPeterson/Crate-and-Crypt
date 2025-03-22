@@ -2,6 +2,16 @@
  * Network connection module for WebSocket communication
  */
 
+// Import THREE library for 3D operations
+import * as THREE from 'three';
+
+// WebSocket connection variables
+let socket: WebSocket | null = null;
+let connectionUrl: string = '';
+let isConnected: boolean = false;
+let reconnectAttempts: number = 0;
+const maxReconnectAttempts: number = 5;
+
 // Define message types
 export enum MessageType {
     JOIN = 'Join',
@@ -32,9 +42,6 @@ export enum ConnectionStatus {
 // Singleton connection instance
 let wsConnection: WebSocket | null = null;
 let connectionStatus: ConnectionStatus = ConnectionStatus.DISCONNECTED;
-let connectionUrl: string = '';
-let reconnectAttempts: number = 0;
-const MAX_RECONNECT_ATTEMPTS: number = 5;
 const RECONNECT_DELAY: number = 2000;
 
 // Event callbacks
@@ -48,28 +55,99 @@ const eventListeners: { [key: string]: Array<(data: any) => void> } = {
 /**
  * Initialize the network connection
  */
-export function initNetwork(): void {
-    console.log('Initializing network connection...');
+export function initNetwork() {
+    console.log("Initializing network connection...");
     
-    // Set the WebSocket URL based on environment
-    // Safe check for process.env access that might not be available in all environments
-    const isProduction = typeof process !== 'undefined' && process.env && process.env.NODE_ENV === 'production';
+    // Check URL for room ID
+    const urlParams = new URLSearchParams(window.location.search);
+    const roomIdFromUrl = urlParams.get('roomId');
     
-    // Use secure WebSocket (wss) in production, plain WebSocket (ws) in development
-    const protocol = isProduction ? 'wss' : 'ws';
-    const host = (typeof window !== 'undefined' && isProduction) ? window.location.host : 'localhost:8080';
-    connectionUrl = `${protocol}://${host}/ws`;
+    // Generate a temporary player ID for this session
+    const tempPlayerId = `temp-player-${Math.floor(Math.random() * 10000)}`;
+    window.gameState.playerId = tempPlayerId;
     
-    // For testing purposes, connect automatically
-    connect().then(() => {
-        console.log('Connected to WebSocket server automatically for testing');
-        // For testing, automatically join a room
-        sendMessage(MessageType.JOIN, {
-            createRoom: true
-        });
-    }).catch(error => {
-        console.error('Failed to connect to WebSocket server:', error);
-    });
+    console.log(`Generated temporary player ID: ${tempPlayerId}`);
+    
+    // Do NOT create a player or connect to the server yet
+    // Wait for user action instead
+    
+    // If room ID is in URL, store it but don't auto-join
+    if (roomIdFromUrl) {
+        console.log(`Found room ID in URL: ${roomIdFromUrl}`);
+        window.gameState.roomId = roomIdFromUrl;
+        
+        // Update room ID display if it exists
+        const roomIdElement = document.getElementById('room-id');
+        if (roomIdElement) {
+            roomIdElement.textContent = `Room: ${roomIdFromUrl}`;
+        }
+    }
+}
+
+/**
+ * Start the game when the user clicks Play
+ */
+export function startGame(roomId?: string) {
+    console.log("Starting game...");
+    
+    // Now create the player
+    const playerManager = window.gameEngine.playerManager;
+    const localPlayer = playerManager.createLocalPlayer(window.gameState.playerId || 'unknown-player');
+    
+    // Use the player's camera for rendering
+    window.gameEngine.camera = localPlayer.camera;
+    
+    // Connect to the server
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const host = window.location.hostname === 'localhost' ? 'localhost:8080' : window.location.host;
+    const connectionUrl = `${protocol}//${host}/ws`;
+    
+    // Connect with the appropriate player ID
+    connectToServer(connectionUrl, window.gameState.playerId || 'unknown-player', roomId);
+    
+    // Don't try to use controls yet - it's undefined
+    // window.gameEngine.controls.enableMouseControls();
+}
+
+/**
+ * Connect to the server
+ */
+function connectToServer(url: string, playerId: string, roomId: string | null = null) {
+    console.log(`Connecting to WebSocket server at ${url}`);
+    console.log(`Player ID: ${playerId}, Room ID: ${roomId}`);
+    
+    // Initialize WebSocket connection
+    const socket = new WebSocket(`${url}?playerId=${playerId}`);
+    
+    // Store reference to socket
+    window.gameState.socket = socket;
+    
+    // Set up event handlers
+    socket.onopen = () => {
+        console.log('Connected to WebSocket server');
+        
+        // Send join message with the appropriate parameters
+        if (roomId) {
+            joinRoom(roomId);
+        } else {
+            createRoom();
+        }
+        
+        // Start heartbeat
+        startHeartbeat();
+    };
+    
+    socket.onmessage = (event) => {
+        handleMessage(event.data);
+    };
+    
+    socket.onclose = (event) => {
+        console.log(`WebSocket connection closed: ${event.code} ${event.reason}`);
+    };
+    
+    socket.onerror = (error) => {
+        console.error('WebSocket error:', error);
+    };
 }
 
 /**
@@ -121,8 +199,8 @@ export function connect(playerId?: string, roomId?: string): Promise<void> {
             triggerEvent('disconnect', { code: event.code, reason: event.reason });
             
             // Attempt to reconnect if connection was previously established
-            if (reconnectAttempts < MAX_RECONNECT_ATTEMPTS) {
-                console.log(`Attempting to reconnect (${reconnectAttempts + 1}/${MAX_RECONNECT_ATTEMPTS})...`);
+            if (reconnectAttempts < maxReconnectAttempts) {
+                console.log(`Attempting to reconnect (${reconnectAttempts + 1}/${maxReconnectAttempts})...`);
                 reconnectAttempts++;
                 setTimeout(() => {
                     connect(playerId, roomId).catch(console.error);
@@ -158,23 +236,23 @@ export function disconnect(): void {
  * @param payload Message payload
  * @returns True if the message was sent
  */
-export function sendMessage(type: MessageType, payload: any = {}): boolean {
-    if (!wsConnection || connectionStatus !== ConnectionStatus.CONNECTED) {
-        console.error('Cannot send message: Not connected');
+export function sendMessage(type: MessageType, payload: any): boolean {
+    if (!window.gameState.socket || window.gameState.socket.readyState !== WebSocket.OPEN) {
+        // Don't show these warnings in the console to reduce spam
         return false;
     }
     
-    const message: NetworkMessage = {
+    const message = {
         type,
         payload,
         timestamp: Date.now()
     };
     
     try {
-        wsConnection.send(JSON.stringify(message));
+        window.gameState.socket.send(JSON.stringify(message));
         return true;
     } catch (error) {
-        console.error('Error sending message:', error);
+        console.error('Failed to send message:', error);
         return false;
     }
 }
@@ -197,15 +275,63 @@ function handleMessage(data: string): void {
                 
             case MessageType.JOIN:
                 // Update player info if server assigned a new ID
-                if (message.payload.playerId) {
-                    window.gameState.playerId = message.payload.playerId;
-                    console.log('Server assigned player ID:', message.payload.playerId);
+                if (message.payload.player_id) {
+                    window.gameState.playerId = message.payload.player_id;
+                    console.log('Server assigned player ID:', message.payload.player_id);
+                    
+                    // Create player in the scene
+                    handleJoinResponse(message);
                 }
                 
-                // Update room info
-                if (message.payload.roomId) {
-                    window.gameState.roomId = message.payload.roomId;
-                    console.log('Joined room:', message.payload.roomId);
+                // Update room info - Debug the payload to see the room ID
+                console.log("JOIN payload received:", message.payload);
+                if (message.payload.room_id) {
+                    window.gameState.roomId = message.payload.room_id;
+                    console.log('Joined room:', message.payload.room_id);
+                    
+                    // Update room info in UI
+                    updateRoomInfo(message.payload.room_id);
+                    
+                    // Update player count if we have room data
+                    if (message.payload.players_count) {
+                        updatePlayerCount(message.payload.players_count);
+                    }
+                } else {
+                    console.warn('No room ID in JOIN response');
+                }
+                break;
+                
+            case MessageType.PLAYER_UPDATE:
+                // Handle player position/rotation updates for remote players
+                if (message.payload.player_id && message.payload.player_id !== window.gameState.playerId) {
+                    console.log(`Received position update for player: ${message.payload.player_id}`, message.payload);
+                    
+                    const position = new THREE.Vector3(
+                        message.payload.position.x,
+                        message.payload.position.y,
+                        message.payload.position.z
+                    );
+                    
+                    // Extract rotation from the position object's rotation field
+                    const rotation = new THREE.Euler(
+                        0, // No rotation in X axis
+                        message.payload.position.rotation || 0, // Y axis rotation
+                        0, // No rotation in Z axis
+                        'YXZ'
+                    );
+                    
+                    window.gameEngine.playerManager.updateRemotePlayer(
+                        message.payload.player_id,
+                        position,
+                        rotation
+                    );
+                }
+                break;
+                
+            case MessageType.LEAVE:
+                // Remove player who has left
+                if (message.payload.playerId) {
+                    window.gameEngine.playerManager.removeRemotePlayer(message.payload.playerId);
                 }
                 break;
                 
@@ -220,6 +346,96 @@ function handleMessage(data: string): void {
     } catch (error) {
         console.error('Error parsing message:', error);
     }
+}
+
+/**
+ * Handle join response
+ * @param message Join message from server
+ */
+function handleJoinResponse(message: any): void {
+    // Handle the join response
+    const payload = message.payload;
+    
+    if (payload.player_id) {
+        console.log(`Successfully joined room as player ${payload.player_id}`);
+        window.gameState.playerId = payload.player_id;
+        
+        // If we already created a temp player, just update the ID
+        if (window.gameEngine.playerManager.localPlayer) {
+            window.gameEngine.playerManager.localPlayer.id = payload.player_id;
+        } else {
+            // Create player in the scene if not already created
+            const playerManager = window.gameEngine.playerManager;
+            const localPlayer = playerManager.createLocalPlayer(payload.player_id);
+            
+            // Use the player's camera for rendering
+            window.gameEngine.camera = localPlayer.camera;
+        }
+    }
+    
+    // Show room ID if available (using either room_id from the backend or roomId format)
+    if (payload.room_id) {
+        window.gameState.roomId = payload.room_id;
+        console.log(`Room ID: ${payload.room_id} - Share this with friends to join!`);
+        
+        // Update the UI
+        updateRoomInfo(payload.room_id);
+    } else if (payload.roomId) {
+        window.gameState.roomId = payload.roomId;
+        console.log(`Room ID: ${payload.roomId} - Share this with friends to join!`);
+        
+        // Update the UI
+        updateRoomInfo(payload.roomId);
+    }
+    
+    // Start position updates
+    startPlayerUpdates();
+}
+
+/**
+ * Update the room info in the UI
+ */
+function updateRoomInfo(roomId: string): void {
+    // Update room ID display in game UI
+    const roomIdElement = document.getElementById('room-id');
+    if (roomIdElement) {
+        roomIdElement.textContent = `Room: ${roomId}`;
+    }
+    
+    // Create a floating room ID display
+    displayRoomId(roomId);
+}
+
+/**
+ * Start sending periodic player position updates
+ */
+function startPlayerUpdates(): void {
+    // Send player position updates every 100ms (10 updates per second)
+    setInterval(() => {
+        // Make sure player exists and we're in a room
+        if (!window.gameEngine.playerManager.localPlayer || !window.gameState.roomId) {
+            return;
+        }
+        
+        // Don't try to send updates if not connected
+        if (!window.gameState.socket || window.gameState.socket.readyState !== WebSocket.OPEN) {
+            return;
+        }
+        
+        const player = window.gameEngine.playerManager.localPlayer;
+        
+        // Send position update - use the exact field names expected by the backend
+        sendMessage(MessageType.PLAYER_UPDATE, {
+            player_id: player.id, // changed from 'playerId' to 'player_id' to match backend
+            position: {
+                x: player.position.x,
+                y: player.position.y,
+                z: player.position.z,
+                rotation: player.rotation.y
+            },
+            action: "move" // Add the action field that backend expects
+        });
+    }, 100);
 }
 
 /**
@@ -272,53 +488,69 @@ function triggerEvent(event: string, data: any): void {
 
 /**
  * Create a new game room
- * @returns Promise resolving with room ID
  */
-export async function createRoom(): Promise<string> {
-    // Connect if not already connected
-    if (connectionStatus !== ConnectionStatus.CONNECTED) {
-        await connect();
+function createRoom(): void {
+    if (!window.gameState.socket || window.gameState.socket.readyState !== WebSocket.OPEN) {
+        console.error('Cannot create room: WebSocket not connected');
+        return;
     }
     
-    return new Promise((resolve, reject) => {
-        // Register a one-time listener for the join response
-        const joinHandler = (message: NetworkMessage) => {
-            if (message.type === MessageType.JOIN && message.payload.roomId) {
-                // Remove the one-time listener
-                const index = eventListeners.message.indexOf(joinHandler);
-                if (index !== -1) {
-                    eventListeners.message.splice(index, 1);
-                }
-                
-                // Resolve with the room ID
-                resolve(message.payload.roomId);
-            }
-        };
-        
-        // Add the one-time listener
-        on('message', joinHandler);
-        
-        // Send the create room request
-        const success = sendMessage(MessageType.JOIN, { createRoom: true });
-        
-        if (!success) {
-            reject(new Error('Failed to send create room request'));
-        }
-    });
+    console.log('Creating new game room...');
+    
+    // Create a join message with create_room flag
+    const joinMessage = {
+        type: MessageType.JOIN,
+        payload: {
+            player_id: window.gameState.playerId,
+            create_room: true
+        },
+        timestamp: Date.now()
+    };
+    
+    try {
+        // Send the message to the server
+        window.gameState.socket.send(JSON.stringify(joinMessage));
+        console.log('Sent create room request');
+    } catch (error) {
+        console.error('Failed to send create room request:', error);
+    }
 }
 
 /**
  * Join an existing game room
- * @param roomId Room ID to join
- * @returns Promise resolving when joined
  */
-export async function joinRoom(roomId: string): Promise<void> {
-    // Connect if not already connected
-    if (connectionStatus !== ConnectionStatus.CONNECTED) {
-        await connect(undefined, roomId);
-    } else {
-        // Already connected, just send join message
-        sendMessage(MessageType.JOIN, { roomId });
+function joinRoom(roomId: string): void {
+    if (!window.gameState.socket || window.gameState.socket.readyState !== WebSocket.OPEN) {
+        console.error('Cannot join room: WebSocket not connected');
+        return;
+    }
+    
+    if (!roomId) {
+        console.error('Cannot join room: No room ID provided');
+        return;
+    }
+    
+    console.log(`Joining room: ${roomId}`);
+    
+    // Store the intended room ID so we can check it later
+    window.gameState.requestedRoomId = roomId;
+    
+    // Create a join message with the room ID
+    const joinMessage = {
+        type: MessageType.JOIN,
+        payload: {
+            player_id: window.gameState.playerId,
+            room_id: roomId
+        },
+        timestamp: Date.now()
+    };
+    
+    try {
+        // Send the message to the server
+        window.gameState.socket.send(JSON.stringify(joinMessage));
+        console.log(`Sent join request for room ${roomId}`);
+    } catch (error) {
+        console.error('Failed to send join request:', error);
     }
 }
 
@@ -336,4 +568,85 @@ export function sendChatMessage(text: string): void {
  */
 export function getConnectionStatus(): ConnectionStatus {
     return connectionStatus;
+}
+
+/**
+ * Send a join request to the server
+ */
+function sendJoinRequest(): void {
+    sendMessage(MessageType.JOIN, {
+        createRoom: true
+    });
+}
+
+/**
+ * Start heartbeat to keep connection alive
+ */
+function startHeartbeat(): void {
+    const HEARTBEAT_INTERVAL = 30000; // 30 seconds
+    
+    setInterval(() => {
+        if (window.gameState.socket?.readyState === WebSocket.OPEN) {
+            // Send ping message to keep connection alive
+            const pingMessage = {
+                type: MessageType.PING,
+                payload: { time: Date.now() },
+                timestamp: Date.now()
+            };
+            
+            window.gameState.socket.send(JSON.stringify(pingMessage));
+        }
+    }, HEARTBEAT_INTERVAL);
+}
+
+/**
+ * Display the room ID on screen for easy sharing
+ */
+function displayRoomId(roomId: string): void {
+    if (typeof document === 'undefined') return;
+    
+    // Create room ID display
+    const roomIdDisplay = document.createElement('div');
+    roomIdDisplay.id = 'room-id-display';
+    roomIdDisplay.style.position = 'absolute';
+    roomIdDisplay.style.top = '10px';
+    roomIdDisplay.style.right = '10px';
+    roomIdDisplay.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+    roomIdDisplay.style.color = 'white';
+    roomIdDisplay.style.padding = '10px';
+    roomIdDisplay.style.borderRadius = '5px';
+    roomIdDisplay.style.fontFamily = 'monospace';
+    roomIdDisplay.style.fontSize = '14px';
+    roomIdDisplay.style.zIndex = '1000';
+    
+    roomIdDisplay.innerHTML = `
+        <h3 style="margin-top: 0; margin-bottom: 5px;">Room ID</h3>
+        <p style="font-size: 24px; margin-top: 0; margin-bottom: 5px; text-align: center;">${roomId}</p>
+        <p style="margin-top: 0; margin-bottom: 0;"><small>Share with friends to join</small></p>
+    `;
+    
+    // Remove any existing display
+    const existingDisplay = document.getElementById('room-id-display');
+    if (existingDisplay && existingDisplay.parentNode) {
+        existingDisplay.parentNode.removeChild(existingDisplay);
+    }
+    
+    // Add to document
+    document.body.appendChild(roomIdDisplay);
+    
+    // Update URL with room ID for easy sharing
+    const url = new URL(window.location.href);
+    url.searchParams.set('roomId', roomId);
+    window.history.replaceState({}, '', url.toString());
+}
+
+/**
+ * Update the player count in the UI
+ */
+function updatePlayerCount(count: number): void {
+    // Update player count display
+    const playerCountElement = document.getElementById('player-count');
+    if (playerCountElement) {
+        playerCountElement.textContent = `Players: ${count}`;
+    }
 } 

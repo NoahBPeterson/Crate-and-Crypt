@@ -35,7 +35,11 @@ const assets: AssetRegistry = {
 
 // List of all assets to load
 const assetManifest: AssetDefinition[] = [
-    // Textures
+    // These assets are optional during development
+    // When missing, we'll use procedural models instead
+    
+    // Textures - commented out until available
+    /*
     { type: AssetType.TEXTURE, id: 'crate_diffuse', url: './public/assets/textures/crate_diffuse.jpg' },
     { type: AssetType.TEXTURE, id: 'crate_normal', url: './public/assets/textures/crate_normal.jpg' },
     { type: AssetType.TEXTURE, id: 'floor_diffuse', url: './public/assets/textures/floor_diffuse.jpg' },
@@ -52,6 +56,7 @@ const assetManifest: AssetDefinition[] = [
     // JSON data
     { type: AssetType.JSON, id: 'levels', url: './public/assets/data/levels.json' },
     { type: AssetType.JSON, id: 'items', url: './public/assets/data/items.json' }
+    */
 ];
 
 // Loaders

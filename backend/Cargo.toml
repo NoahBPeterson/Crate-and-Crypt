@@ -17,3 +17,4 @@ log = "0.4"
 env_logger = "0.10"
 rapier3d = { version = "0.18.0", features = ["serde-serialize"] }
 chrono = { version = "0.4", features = ["serde"] }
+rand = "0.8"

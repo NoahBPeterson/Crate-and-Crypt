@@ -5,6 +5,8 @@ import { setupInputHandlers } from './js/utils/input';
 import { initUI } from './js/ui/ui-manager';
 import { initNetwork } from './js/network/connection';
 import { loadAssets } from './js/utils/loader';
+import { PlayerManager } from './js/entities/player-manager';
+import { debugPlayerMovement } from './js/entities/player';
 
 // Define global types
 declare global {
@@ -20,7 +22,9 @@ declare global {
             renderer: THREE.WebGLRenderer;
             scene: THREE.Scene;
             camera: THREE.Camera;
+            playerManager: PlayerManager;
         };
+        debugPlayerMovement: () => void;
     }
 }
 
@@ -50,8 +54,12 @@ export async function init(): Promise<void> {
             window.gameEngine = {
                 renderer: engineComponents.renderer as THREE.WebGLRenderer,
                 scene: engineComponents.scene as THREE.Scene,
-                camera: engineComponents.camera as THREE.Camera
+                camera: engineComponents.camera as THREE.Camera,
+                playerManager: new PlayerManager(engineComponents.scene)
             };
+            
+            // Add debug function to window
+            window.debugPlayerMovement = debugPlayerMovement;
         }
         
         // Setup input handlers
@@ -82,11 +90,20 @@ export async function init(): Promise<void> {
 function startRenderLoop(): void {
     if (typeof window === 'undefined') return;
     
+    // Track frame timing
+    const clock = new THREE.Clock();
+    let lastTime = 0;
+    
     function animate(): void {
+        // Calculate delta time
+        const time = clock.getElapsedTime();
+        const deltaTime = time - lastTime;
+        lastTime = time;
+        
         requestAnimationFrame(animate);
         
         // Update game systems
-        updateGameSystems();
+        updateGameSystems(deltaTime);
         
         // Render the scene
         window.gameEngine.renderer.render(window.gameEngine.scene, window.gameEngine.camera);
@@ -95,9 +112,19 @@ function startRenderLoop(): void {
     animate();
 }
 
-function updateGameSystems(): void {
-    // Update systems each frame
-    // This will be expanded as we implement more systems
+function updateGameSystems(deltaTime: number): void {
+    // Update player animations
+    if (window.gameEngine?.playerManager) {
+        // Update local player if exists
+        if (window.gameEngine.playerManager.localPlayer) {
+            window.gameEngine.playerManager.localPlayer.update(deltaTime);
+        }
+        
+        // Update all remote players
+        window.gameEngine.playerManager.remotePlayers.forEach(player => {
+            player.update(deltaTime);
+        });
+    }
 }
 
 function showMainMenu(): void {

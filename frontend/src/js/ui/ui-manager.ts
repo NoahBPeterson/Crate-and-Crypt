@@ -2,6 +2,8 @@
  * UI Manager for handling all user interface elements
  */
 
+import { startGame } from '../network/connection';
+
 // UI screens/sections
 interface UIComponents {
     loadingScreen: HTMLElement | null;
@@ -55,7 +57,7 @@ export function initUI(): void {
     createChat(uiContainer);
     
     // Setup UI event listeners
-    setupEventListeners();
+    setupEventHandlers();
     
     console.log('UI initialization complete');
 }
@@ -244,22 +246,111 @@ function createChat(parent: HTMLElement): void {
 /**
  * Setup UI event listeners
  */
-function setupEventListeners(): void {
-    // Main menu buttons
-    document.getElementById('play-button')?.addEventListener('click', () => {
-        hideScreen('main-menu');
-        showGameUI();
+function setupEventHandlers(): void {
+    // Play button
+    const playButton = document.getElementById('play-button');
+    if (playButton) {
+        playButton.addEventListener('click', () => {
+            console.log('Play button clicked');
+            
+            // Hide main menu
+            hideScreen('main-menu');
+            
+            // Show game UI
+            showScreen('game-ui');
+            
+            // Start the game when play is clicked
+            startGame();
+        });
+    }
+
+    // Join Game button
+    const joinGameButton = document.getElementById('join-button');
+    if (joinGameButton) {
+        joinGameButton.addEventListener('click', () => {
+            console.log('Join Game button clicked');
+            
+            // Show join game input form
+            const joinForm = document.createElement('div');
+            joinForm.id = 'join-game-form';
+            joinForm.style.position = 'fixed';
+            joinForm.style.top = '50%';
+            joinForm.style.left = '50%';
+            joinForm.style.transform = 'translate(-50%, -50%)';
+            joinForm.style.background = 'rgba(0, 0, 0, 0.8)';
+            joinForm.style.padding = '20px';
+            joinForm.style.borderRadius = '10px';
+            joinForm.style.zIndex = '2000';
+            
+            joinForm.innerHTML = `
+                <h2 style="color: white; margin-top: 0;">Join Game</h2>
+                <div style="margin: 20px 0;">
+                    <label for="room-id-input" style="color: white; display: block; margin-bottom: 5px;">Enter Room ID:</label>
+                    <input id="room-id-input" type="text" style="width: 100%; padding: 8px; font-size: 16px;" placeholder="e.g. 1234">
+                </div>
+                <div style="display: flex; justify-content: space-between;">
+                    <button id="cancel-join" style="padding: 10px 20px; background: #444; color: white; border: none; border-radius: 5px; cursor: pointer;">Cancel</button>
+                    <button id="confirm-join" style="padding: 10px 20px; background: #0066cc; color: white; border: none; border-radius: 5px; cursor: pointer;">Join</button>
+                </div>
+            `;
+            
+            document.body.appendChild(joinForm);
+            
+            // Focus the input
+            setTimeout(() => {
+                const input = document.getElementById('room-id-input') as HTMLInputElement;
+                if (input) input.focus();
+            }, 100);
+            
+            // Add event listeners
+            document.getElementById('cancel-join')?.addEventListener('click', () => {
+                document.body.removeChild(joinForm);
+            });
+            
+            document.getElementById('confirm-join')?.addEventListener('click', () => {
+                const roomIdInput = document.getElementById('room-id-input') as HTMLInputElement;
+                if (roomIdInput && roomIdInput.value) {
+                    // Remove the form
+                    document.body.removeChild(joinForm);
+                    
+                    // Hide main menu
+                    hideScreen('main-menu');
+                    
+                    // Show game UI
+                    showScreen('game-ui');
+                    
+                    // Start the game with the room ID
+                    startGame(roomIdInput.value);
+                }
+            });
+            
+            // Handle enter key press
+            document.getElementById('room-id-input')?.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    document.getElementById('confirm-join')?.click();
+                }
+            });
+        });
+    }
+
+    // Settings button
+    const settingsButton = document.getElementById('settings-button');
+    if (settingsButton) {
+        settingsButton.addEventListener('click', () => {
+            console.log('Settings button clicked');
+            showScreen('settings');
+        });
+    }
+
+    // Back buttons
+    const backButtons = document.querySelectorAll('.back-button');
+    backButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            console.log('Back button clicked');
+            showScreen('main-menu');
+        });
     });
-    
-    document.getElementById('join-button')?.addEventListener('click', () => {
-        // Show join game dialog
-        promptForRoomID();
-    });
-    
-    document.getElementById('settings-button')?.addEventListener('click', () => {
-        toggleScreen('settings-panel');
-    });
-    
+
     // Game UI buttons
     document.getElementById('inventory-button')?.addEventListener('click', () => {
         toggleScreen('inventory');
