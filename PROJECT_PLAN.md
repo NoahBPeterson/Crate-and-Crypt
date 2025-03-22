@@ -266,6 +266,6 @@ Polished experience with optimized performance ready for deployment
 
 ---
 
-**Version:** 1.1  
-**Last Updated:** May 9, 2024  
+**Version:** 1.0  
+**Last Updated:** March 22, 2025
 **Author:** Crate and Crypt Team 

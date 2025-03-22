@@ -238,4 +238,4 @@ To compile performance-critical parts to WebAssembly:
 ---
 
 Document Version: 1.1  
-Last Updated: [Current Date] 
+Last Updated: March 22nd, 2025
