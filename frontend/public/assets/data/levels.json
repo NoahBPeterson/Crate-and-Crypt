@@ -1,0 +1,12 @@
+{
+  "levels": [
+    {
+      "id": "level1",
+      "name": "Tutorial",
+      "difficulty": "easy",
+      "description": "Learn the basics of the game",
+      "maxPlayers": 4,
+      "layout": []
+    }
+  ]
+} 
