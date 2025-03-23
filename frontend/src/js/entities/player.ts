@@ -99,7 +99,7 @@ export class Player {
         // Create sprite
         const sprite = new THREE.Sprite(material);
         sprite.scale.set(1.5, 0.5, 1);
-        sprite.position.set(0, 2.5, 0); // Position above head
+        sprite.position.set(0, 2.25, 0); // Positioned higher to match taller model
         
         // Add to model
         this.model.add(sprite);
@@ -156,75 +156,75 @@ export class Player {
             metalness: 0.5
         });
         
-        // Body (torso)
-        const bodyGeometry = new THREE.CapsuleGeometry(0.25, 0.5, 4, 8);
+        // Body (torso) - increased height
+        const bodyGeometry = new THREE.CapsuleGeometry(0.25, 0.9, 4, 8);
         const body = new THREE.Mesh(bodyGeometry, suitMaterial);
-        body.position.y = 0.5;
+        body.position.y = 0.7; // Positioned higher
         body.castShadow = true;
         playerGroup.add(body);
         
-        // Helmet
+        // Helmet - positioned higher
         const helmetGeometry = new THREE.SphereGeometry(0.25, 16, 16);
         const helmet = new THREE.Mesh(helmetGeometry, helmetMaterial);
-        helmet.position.y = 1.125;
+        helmet.position.y = 1.6; // Matches exactly with firstPersonOffset height (1.6)
         helmet.castShadow = true;
         playerGroup.add(helmet);
         
-        // Visor
+        // Visor - positioned higher
         const visorGeometry = new THREE.SphereGeometry(0.15, 16, 8, 0, Math.PI * 2, 0, Math.PI * 0.5);
         const visor = new THREE.Mesh(visorGeometry, visorMaterial);
         visor.rotation.x = Math.PI * 0.5;
-        visor.position.set(0, 1.125, 0.12);
+        visor.position.set(0, 1.6, 0.12); // Match helmet height
         playerGroup.add(visor);
         
         // Backpack
         const backpackGeometry = new THREE.BoxGeometry(0.3, 0.4, 0.2);
         const backpack = new THREE.Mesh(backpackGeometry, accentMaterial);
-        backpack.position.set(0, 0.5, -0.25);
+        backpack.position.set(0, 0.7, -0.25); // Match body height
         backpack.castShadow = true;
         playerGroup.add(backpack);
         
-        // Arms
-        const armGeometry = new THREE.CapsuleGeometry(0.08, 0.5, 4, 8);
+        // Arms - lengthened
+        const armGeometry = new THREE.CapsuleGeometry(0.08, 0.85, 4, 8);
         
         // Left arm
         const leftArm = new THREE.Mesh(armGeometry, suitMaterial);
-        leftArm.position.set(-0.35, 0.5, 0);
+        leftArm.position.set(-0.35, 0.7, 0); // Match body height
         leftArm.rotation.z = -Math.PI / 8;
         leftArm.castShadow = true;
         playerGroup.add(leftArm);
         
         // Right arm
         const rightArm = new THREE.Mesh(armGeometry, suitMaterial);
-        rightArm.position.set(0.35, 0.5, 0);
+        rightArm.position.set(0.35, 0.7, 0); // Match body height
         rightArm.rotation.z = Math.PI / 8;
         rightArm.castShadow = true;
         playerGroup.add(rightArm);
         
-        // Legs
-        const legGeometry = new THREE.CapsuleGeometry(0.08, 0.5, 4, 8);
+        // Legs - lengthened but still prevent clipping
+        const legGeometry = new THREE.CapsuleGeometry(0.08, 0.8, 4, 8);
         
         // Left leg
         const leftLeg = new THREE.Mesh(legGeometry, suitMaterial);
-        leftLeg.position.set(-0.15, -0.15, 0);
+        leftLeg.position.set(-0.15, 0, 0); // Adjusted to prevent clipping
         leftLeg.castShadow = true;
         playerGroup.add(leftLeg);
         
         // Right leg
         const rightLeg = new THREE.Mesh(legGeometry, suitMaterial);
-        rightLeg.position.set(0.15, -0.15, 0);
+        rightLeg.position.set(0.15, 0, 0); // Adjusted to prevent clipping
         rightLeg.castShadow = true;
         playerGroup.add(rightLeg);
         
         // Add lights to the suit (glowing accents)
         const leftLightGeometry = new THREE.SphereGeometry(0.05);
         const leftLight = new THREE.Mesh(leftLightGeometry, accentMaterial);
-        leftLight.position.set(-0.2, 0.7, 0.2);
+        leftLight.position.set(-0.2, 1.0, 0.2); // Positioned higher
         playerGroup.add(leftLight);
         
         const rightLightGeometry = new THREE.SphereGeometry(0.05);
         const rightLight = new THREE.Mesh(rightLightGeometry, accentMaterial);
-        rightLight.position.set(0.2, 0.7, 0.2);
+        rightLight.position.set(0.2, 1.0, 0.2); // Positioned higher
         playerGroup.add(rightLight);
         
         return playerGroup;
