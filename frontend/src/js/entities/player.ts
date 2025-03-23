@@ -17,10 +17,14 @@ export class Player {
     // Animation properties
     isMoving: boolean = false;
     animationClock: THREE.Clock;
+    previousPosition: THREE.Vector3;
 
     // Camera offsets
     firstPersonOffset: THREE.Vector3 = new THREE.Vector3(0, 1.6, 0); // Head height
     thirdPersonOffset: THREE.Vector3 = new THREE.Vector3(0, 2, 5); // Behind and above
+
+    // Static member to track last position
+    static lastPosition = new THREE.Vector3();
 
     constructor(id: string, startPosition?: THREE.Vector3) {
         this.id = id;
@@ -29,6 +33,7 @@ export class Player {
         this.model = this.createPlayerModel();
         this.camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         this.animationClock = new THREE.Clock();
+        this.previousPosition = this.position.clone();
         
         // Set initial position
         this.model.position.copy(this.position);
@@ -283,6 +288,9 @@ export class Player {
      * Move the player
      */
     move(direction: THREE.Vector3): void {
+        // Store previous position for animation checks
+        this.previousPosition.copy(this.position);
+        
         // Apply movement
         this.position.add(direction.multiplyScalar(this.moveSpeed));
         this.model.position.copy(this.position);
@@ -322,8 +330,11 @@ export class Player {
      * Update player (called each frame)
      */
     update(deltaTime: number): void {
-        // Add simple bobbing animation when moving
-        if (this.isMoving && !this.isFirstPerson) {
+        // Check if position has changed meaningfully since last move
+        const positionChanged = this.position.distanceTo(this.previousPosition) > 0.01;
+        
+        // Only apply walking animation if the player has actually moved position
+        if (this.isMoving && positionChanged && !this.isFirstPerson) {
             const time = this.animationClock.getElapsedTime();
             const bounce = Math.sin(time * 10) * 0.05;
             

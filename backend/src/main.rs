@@ -143,6 +143,8 @@ struct GameSession {
     last_update: Instant,
     /// Reference to app state
     app_state: web::Data<AppState>,
+    /// Last reported position
+    last_position: Option<Position>,
 }
 
 /// Default implementation for GameSession
@@ -156,6 +158,7 @@ impl Default for GameSession {
                 sessions: actix_web::web::Data::new(std::sync::Mutex::new(SessionState::new())),
                 connections: std::sync::Mutex::new(HashMap::new()),
             }),
+            last_position: None,
         }
     }
 }
@@ -227,7 +230,7 @@ impl StreamHandler<Result<ws::Message, ws::ProtocolError>> for GameSession {
 
 impl GameSession {
     /// Handle a game-specific message
-    fn handle_game_message(&self, message: GameMessage, ctx: &mut ws::WebsocketContext<Self>) {
+    fn handle_game_message(&mut self, message: GameMessage, ctx: &mut ws::WebsocketContext<Self>) {
         match message {
             GameMessage::Join { player_id, room_id, create_room } => {
                 println!("Join request from player {} (create_room: {:?}, room_id: {:?})",
@@ -297,6 +300,59 @@ impl GameSession {
                         ctx.text(json);
                     }
                 }
+                
+                // Collect other players in the room
+                let other_players: Vec<String> = if let Some(room) = session_state.rooms.get(&final_room_id) {
+                    room.players.iter()
+                        .filter(|pid| *pid != &self.id)
+                        .map(|pid| pid.clone())
+                        .collect()
+                } else {
+                    Vec::new()
+                };
+                
+                // Make a copy of the room ID
+                let room_id_for_broadcast = final_room_id.clone();
+                
+                // Initialize the new player with a default position if they don't have one
+                if self.last_position.is_none() {
+                    self.last_position = Some(Position {
+                        x: 0.0,
+                        y: 0.0,
+                        z: 0.0,
+                        rotation: Some(0.0),
+                    });
+                }
+                
+                // Release the session state lock
+                drop(session_state);
+                
+                // Send positions of existing players to the new player
+                if !other_players.is_empty() {
+                    // Get the connections map
+                    let connections = self.app_state.connections.lock().unwrap();
+                    
+                    // Send position information for each existing player
+                    for player_id in &other_players {
+                        if let Some(player_session) = connections.get(player_id) {
+                            // Send a request to that player to send their position
+                            let _ = player_session.do_send(SendPositionTo(self.id.clone()));
+                        }
+                    }
+                }
+                
+                // Also broadcast the new player's position to all existing players
+                if let Some(position) = &self.last_position {
+                    // Create an update message with the new player's position
+                    let update_msg = GameMessage::PlayerUpdate {
+                        player_id: self.id.clone(),
+                        position: position.clone(),
+                        action: Some("move".to_string()),
+                    };
+                    
+                    // Broadcast to all players in the room except self
+                    self.broadcast_to_room(&room_id_for_broadcast, &update_msg);
+                }
             }
             GameMessage::Leave { player_id } => {
                 println!("Leave request from player {}", player_id);
@@ -316,6 +372,9 @@ impl GameSession {
                 }
             }
             GameMessage::PlayerUpdate { player_id, position, action } => {
+                // Store the position for future use
+                self.last_position = Some(position.clone());
+                
                 // Get the room for this player
                 let room_id = {
                     let session_state = self.app_state.sessions.lock().unwrap();
@@ -359,7 +418,7 @@ impl GameSession {
     }
 
     /// Broadcast a message to all players in a room except the sender
-    fn broadcast_to_room(&self, room_id: &str, message: &GameMessage) {
+    fn broadcast_to_room(&mut self, room_id: &str, message: &GameMessage) {
         if let Ok(json) = serde_json::to_string(message) {
             // Get session state
             let session_state = self.app_state.sessions.lock().unwrap();
@@ -393,9 +452,44 @@ impl actix::Handler<SendMessage> for GameSession {
     type Result = ();
 
     fn handle(&mut self, msg: SendMessage, ctx: &mut Self::Context) -> Self::Result {
-        println!("Forwarding message to player {}", self.id);
+        // We don't log every forwarded message to reduce console spam
         // Forward the message to the WebSocket
         ctx.text(msg.0);
+    }
+}
+
+// Message type for sending position information to a player
+struct SendPositionTo(String);
+
+impl actix::Message for SendPositionTo {
+    type Result = ();
+}
+
+impl actix::Handler<SendPositionTo> for GameSession {
+    type Result = ();
+
+    fn handle(&mut self, msg: SendPositionTo, ctx: &mut Self::Context) -> Self::Result {
+        // Only send position if we have one
+        if let Some(position) = &self.last_position {
+            // Create a player update message with this player's position
+            let update_msg = GameMessage::PlayerUpdate {
+                player_id: self.id.clone(),
+                position: position.clone(),
+                action: Some("move".to_string()),
+            };
+            
+            // Serialize the update message
+            if let Ok(json) = serde_json::to_string(&update_msg) {
+                // Get the connections map
+                let connections = self.app_state.connections.lock().unwrap();
+                
+                // Send the message directly to the specified player
+                if let Some(addr) = connections.get(&msg.0) {
+                    println!("Sending position update from {} to {}", self.id, msg.0);
+                    let _ = addr.do_send(SendMessage(json));
+                }
+            }
+        }
     }
 }
 
@@ -432,6 +526,12 @@ async fn ws_route(
         hb: Instant::now(),
         last_update: Instant::now(),
         app_state: app_state.clone(),
+        last_position: Some(Position {
+            x: 0.0,
+            y: 0.0,
+            z: 0.0,
+            rotation: Some(0.0),
+        }),
     };
     
     // Start WebSocket session

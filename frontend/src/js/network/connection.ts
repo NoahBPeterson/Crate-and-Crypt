@@ -410,6 +410,10 @@ function updateRoomInfo(roomId: string): void {
  * Start sending periodic player position updates
  */
 function startPlayerUpdates(): void {
+    // Variables to track the last sent position and rotation
+    let lastSentPosition = new THREE.Vector3();
+    let lastSentRotation = 0;
+    
     // Send player position updates every 100ms (10 updates per second)
     setInterval(() => {
         // Make sure player exists and we're in a room
@@ -424,17 +428,28 @@ function startPlayerUpdates(): void {
         
         const player = window.gameEngine.playerManager.localPlayer;
         
-        // Send position update - use the exact field names expected by the backend
-        sendMessage(MessageType.PLAYER_UPDATE, {
-            player_id: player.id, // changed from 'playerId' to 'player_id' to match backend
-            position: {
-                x: player.position.x,
-                y: player.position.y,
-                z: player.position.z,
-                rotation: player.rotation.y
-            },
-            action: "move" // Add the action field that backend expects
-        });
+        // Check if position or rotation has changed enough to warrant an update
+        const positionChanged = player.position.distanceTo(lastSentPosition) > 0.01;
+        const rotationChanged = Math.abs(player.rotation.y - lastSentRotation) > 0.01;
+        
+        // Only send update if position or rotation has changed
+        if (positionChanged || rotationChanged) {
+            // Update the last sent values
+            lastSentPosition.copy(player.position);
+            lastSentRotation = player.rotation.y;
+            
+            // Send position update - use the exact field names expected by the backend
+            sendMessage(MessageType.PLAYER_UPDATE, {
+                player_id: player.id, // changed from 'playerId' to 'player_id' to match backend
+                position: {
+                    x: player.position.x,
+                    y: player.position.y,
+                    z: player.position.z,
+                    rotation: player.rotation.y
+                },
+                action: "move" // Add the action field that backend expects
+            });
+        }
     }, 100);
 }
 
