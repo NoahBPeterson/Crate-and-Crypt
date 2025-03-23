@@ -68,15 +68,36 @@ export function setupInputHandlers(): void {
     window.addEventListener('touchend', handleTouchEnd);
     window.addEventListener('touchmove', handleTouchMove);
     
-    // Pointer lock for mouse look
-    document.addEventListener('click', () => {
-        if (!inputState.mouse.locked) {
-            requestPointerLock();
+    // Listen for game:started event - this is when we should be ready to capture pointer
+    document.addEventListener('game:started', (event) => {
+        console.log('Game started event received in input handler');
+        requestPointerLock();
+    });
+    
+    // Pointer lock for mouse look - ONLY when in game mode
+    document.addEventListener('click', (event) => {
+        // Only attempt to lock pointer if:
+        // 1. We're not already locked
+        // 2. The game is in active gameplay mode (not in main menu)
+        // 3. The click was on the game container (not UI)
+        if (!inputState.mouse.locked && 
+            window.gameState && 
+            window.gameState.currentScreen === 'gameui') {
+            
+            // Additional check: don't lock if click is on UI elements
+            const target = event.target as HTMLElement;
+            const isUIElement = target.closest('#ui-container') !== null;
+            
+            if (!isUIElement) {
+                console.log('Game click - requesting pointer lock');
+                requestPointerLock();
+            }
         }
     });
     
     document.addEventListener('pointerlockchange', () => {
         inputState.mouse.locked = document.pointerLockElement !== null;
+        console.log(`Pointer lock changed: ${inputState.mouse.locked ? 'locked' : 'unlocked'}`);
     });
     
     // Setup game loop for input processing
@@ -92,6 +113,24 @@ export function setupInputHandlers(): void {
  * Request pointer lock for mouse control
  */
 function requestPointerLock(): void {
+    // Double-check we're in gameplay mode before locking
+    if (window.gameState && window.gameState.currentScreen !== 'gameui') {
+        console.log('Prevented pointer lock - not in gameplay mode');
+        return;
+    }
+
+    // Add a safety check for UI elements in the document body
+    const activeElement = document.activeElement;
+    if (activeElement && (
+        activeElement.tagName === 'INPUT' || 
+        activeElement.tagName === 'TEXTAREA' || 
+        activeElement.tagName === 'SELECT' ||
+        activeElement.tagName === 'BUTTON'
+    )) {
+        console.log('Prevented pointer lock - UI element focused');
+        return;
+    }
+
     document.body.requestPointerLock();
 }
 

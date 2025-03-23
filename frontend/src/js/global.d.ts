@@ -28,6 +28,7 @@ declare global {
             roomId: string | null;
             socket?: WebSocket;
             requestedRoomId?: string | null;
+            userInteracted?: boolean; // Flag to track user interaction for pointer lock
         };
     }
 } 

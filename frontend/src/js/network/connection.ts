@@ -90,6 +90,9 @@ export function initNetwork() {
 export function startGame(roomId?: string) {
     console.log("Starting game...");
     
+    // Update the game state to indicate we're in gameplay mode
+    window.gameState.currentScreen = 'gameui';
+    
     // Now create the player
     const playerManager = window.gameEngine.playerManager;
     const localPlayer = playerManager.createLocalPlayer(window.gameState.playerId || 'unknown-player');
@@ -105,8 +108,9 @@ export function startGame(roomId?: string) {
     // Connect with the appropriate player ID
     connectToServer(connectionUrl, window.gameState.playerId || 'unknown-player', roomId);
     
-    // Don't try to use controls yet - it's undefined
-    // window.gameEngine.controls.enableMouseControls();
+    // NOTE: We no longer need to enable mouse controls here
+    // The controls will be enabled when the 'game:started' event is received
+    // This eliminates the need for timeouts and ensures proper sequencing
 }
 
 /**

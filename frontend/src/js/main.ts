@@ -12,7 +12,8 @@ function initGame() {
         playerId: null,
         roomId: null,
         socket: null,
-        requestedRoomId: null
+        requestedRoomId: null,
+        userInteracted: false // Start with no user interaction
     };
     
     // Create game engine
@@ -31,6 +32,8 @@ function initGame() {
     // Initialize controls manager if not already created
     if (!window.gameEngine.controls) {
         window.gameEngine.controls = new ControlsManager();
+        // Ensure mouse controls start disabled
+        window.gameEngine.controls.disableMouseControls();
     }
     
     // Mark game as initialized

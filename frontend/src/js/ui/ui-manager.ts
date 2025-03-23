@@ -253,6 +253,9 @@ function setupEventHandlers(): void {
         playButton.addEventListener('click', () => {
             console.log('Play button clicked');
             
+            // Set flag to indicate user interaction (for pointer lock)
+            window.gameState.userInteracted = true;
+            
             // Hide main menu
             hideScreen('main-menu');
             
@@ -310,6 +313,9 @@ function setupEventHandlers(): void {
             document.getElementById('confirm-join')?.addEventListener('click', () => {
                 const roomIdInput = document.getElementById('room-id-input') as HTMLInputElement;
                 if (roomIdInput && roomIdInput.value) {
+                    // Set flag to indicate user interaction (for pointer lock)
+                    window.gameState.userInteracted = true;
+                    
                     // Remove the form
                     document.body.removeChild(joinForm);
                     
@@ -434,6 +440,70 @@ function showScreen(screenId: string): void {
     const screen = document.getElementById(screenId);
     if (screen) {
         screen.classList.remove('hidden');
+        
+        // Update the current screen in game state to help with controls management
+        if (window.gameState) {
+            // Special case for game UI - set to 'gameui' which is what other parts of the code expect
+            if (screenId === 'game-ui') {
+                window.gameState.currentScreen = 'gameui';
+                
+                // Dispatch a custom event when the game UI is shown
+                // This allows other components to react to the game starting
+                const gameStartEvent = new CustomEvent('game:started', {
+                    detail: { roomId: window.gameState.roomId }
+                });
+                document.dispatchEvent(gameStartEvent);
+                console.log('Dispatched game:started event');
+                
+                // Ensure pointer lock is requested directly when the game UI is shown
+                // This is a more reliable approach than relying solely on event handling
+                requestGamePointerLock();
+            } else {
+                // Remove the '-' if present to make the screen ID consistent
+                const screenName = screenId.replace('-', '');
+                window.gameState.currentScreen = screenName;
+            }
+            console.log(`Screen changed to: ${window.gameState.currentScreen}`);
+        }
+    }
+}
+
+/**
+ * Request pointer lock specifically for game mode
+ * This provides a direct way to request pointer lock when the game starts
+ */
+function requestGamePointerLock(): void {
+    console.log('Directly requesting pointer lock for game');
+    
+    // Only proceed if we're in game mode
+    if (window.gameState.currentScreen !== 'gameui') {
+        console.log('Not requesting pointer lock - not in gameplay mode');
+        return;
+    }
+    
+    // Check if user has interacted
+    if (!window.gameState.userInteracted) {
+        console.log('Not requesting pointer lock - no user interaction yet');
+        return;
+    }
+    
+    // Try to request pointer lock immediately (user has just clicked Play/Join)
+    try {
+        // This is called directly when the game UI is shown, so we know user interaction has happened
+        document.body.requestPointerLock();
+        console.log('Requested pointer lock directly');
+    } catch (error) {
+        console.error('Error requesting pointer lock:', error);
+        
+        // If immediate request fails, try with a small delay as fallback
+        setTimeout(() => {
+            try {
+                document.body.requestPointerLock();
+                console.log('Requested pointer lock with delay');
+            } catch (delayedError) {
+                console.error('Error requesting pointer lock with delay:', delayedError);
+            }
+        }, 100);
     }
 }
 
