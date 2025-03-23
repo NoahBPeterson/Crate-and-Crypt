@@ -73,33 +73,42 @@ export class Player {
         
         if (!context) return;
         
-        // Make canvas wider to accommodate longer names
-        canvas.width = 400;
-        canvas.height = 128;
+        // Measure text to create appropriately sized label
+        context.font = 'Bold 50px Arial';
+        const textMetrics = context.measureText(name);
+        const textWidth = textMetrics.width;
         
-        // Background color based on player type
-        const isLocalPlayer = (name === "YOU");
-        const bgColor = isLocalPlayer ? '#3070c0' : '#ff7700';
+        // Add padding around text
+        const padding = 40;
+        const labelWidth = textWidth + padding * 2;
         
-        // Draw background with rounded corners
-        context.fillStyle = bgColor;
+        // Set canvas dimensions based on text size
+        canvas.width = labelWidth;
+        canvas.height = 100;
+        
+        // Semi-transparent black background
+        context.fillStyle = 'rgba(0, 0, 0, 0.6)';
         roundRect(context, 0, 0, canvas.width, canvas.height, 20);
         
         // Draw text
         context.font = 'Bold 50px Arial';
         context.textAlign = 'center';
         context.textBaseline = 'middle';
-        context.fillStyle = 'white';
+        context.fillStyle = 'rgba(200, 200, 200, 0.5)'; // Off-white with some transparency
         context.fillText(name, canvas.width / 2, canvas.height / 2);
         
         // Create sprite material
         const texture = new THREE.CanvasTexture(canvas);
-        const material = new THREE.SpriteMaterial({ map: texture });
+        const material = new THREE.SpriteMaterial({ 
+            map: texture,
+            transparent: true
+        });
         
-        // Create sprite
+        // Create sprite - scale based on text width
         const sprite = new THREE.Sprite(material);
-        sprite.scale.set(1.5, 0.5, 1);
-        sprite.position.set(0, 2.25, 0); // Positioned higher to match taller model
+        const scaleX = labelWidth / 250; // Scale based on width
+        sprite.scale.set(scaleX, 0.4, 1);
+        sprite.position.set(0, 2.1, 0); // Positioned above player
         
         // Add to model
         this.model.add(sprite);
