@@ -64,23 +64,38 @@ export function initializeEngine(): {
     camera.position.z = 5;
     
     // Add ambient light
-    const ambientLight = new THREE.AmbientLight(0x334455, 0.2);
+    const ambientLight = new THREE.AmbientLight(0x334455, 0.3);
     scene.add(ambientLight);
     
     // Add directional light (main light)
-    const directionalLight = new THREE.DirectionalLight(0xaaccff, 0.5);
+    const directionalLight = new THREE.DirectionalLight(0xaaccff, 1.0);
     directionalLight.position.set(1, 1, 1);
     directionalLight.castShadow = true;
     scene.add(directionalLight);
     
-    // Add point lights for sci-fi atmosphere
-    const pointLight1 = new THREE.PointLight(0x3366ff, 1, 20);
-    pointLight1.position.set(5, 3, 5);
-    scene.add(pointLight1);
+    // Add neon point lights for sci-fi atmosphere
+    const neonLight1 = new THREE.PointLight(0x00ffff, 2.0, 30);
+    neonLight1.position.set(5, 3, 5);
+    scene.add(neonLight1);
     
-    const pointLight2 = new THREE.PointLight(0xff3366, 1, 20);
-    pointLight2.position.set(-5, 3, 5);
-    scene.add(pointLight2);
+    const neonLight2 = new THREE.PointLight(0xff00ff, 2.0, 30);
+    neonLight2.position.set(-5, 3, 5);
+    scene.add(neonLight2);
+    
+    const neonLight3 = new THREE.PointLight(0xffff00, 2.0, 30);
+    neonLight3.position.set(0, 3, -5);
+    scene.add(neonLight3);
+    
+    // Add spot lights for dramatic effect
+    const spotLight1 = new THREE.SpotLight(0x00ffff, 1.5, 30, Math.PI / 4, 0.5);
+    spotLight1.position.set(10, 5, 10);
+    spotLight1.castShadow = true;
+    scene.add(spotLight1);
+    
+    const spotLight2 = new THREE.SpotLight(0xff00ff, 1.5, 30, Math.PI / 4, 0.5);
+    spotLight2.position.set(-10, 5, -10);
+    spotLight2.castShadow = true;
+    scene.add(spotLight2);
     
     // Create a basic environment
     createSciFiEnvironment(scene);
@@ -107,10 +122,12 @@ function createSciFiEnvironment(scene: THREE.Scene): void {
     // Create floor
     const floorGeometry = new THREE.PlaneGeometry(50, 50, 20, 20);
     const floorMaterial = new THREE.MeshStandardMaterial({ 
-        color: 0x222233,
-        roughness: 0.8,
-        metalness: 0.2,
-        wireframe: false
+        color: 0x111122,
+        roughness: 0.9,
+        metalness: 0.3,
+        wireframe: false,
+        emissive: 0x000033,
+        emissiveIntensity: 0.2
     });
     const floor = new THREE.Mesh(floorGeometry, floorMaterial);
     floor.rotation.x = -Math.PI / 2;
@@ -126,9 +143,11 @@ function createSciFiEnvironment(scene: THREE.Scene): void {
     // Add some walls
     // Wall material
     const wallMaterial = new THREE.MeshStandardMaterial({
-        color: 0x333344,
-        roughness: 0.7,
-        metalness: 0.3
+        color: 0x222233,
+        roughness: 0.8,
+        metalness: 0.4,
+        emissive: 0x000044,
+        emissiveIntensity: 0.1
     });
     
     // North wall
@@ -172,20 +191,60 @@ function createSciFiEnvironment(scene: THREE.Scene): void {
  * @param scene Three.js scene
  */
 function addSciFiProps(scene: THREE.Scene): void {
-    // Crate material
-    const crateMaterial = new THREE.MeshStandardMaterial({
-        color: 0x667788,
-        roughness: 0.6,
-        metalness: 0.4
-    });
-    
-    // Glowing material
-    const glowMaterial = new THREE.MeshStandardMaterial({
-        color: 0x00ffff,
-        emissive: 0x00ffff,
-        emissiveIntensity: 0.5,
-        roughness: 0.3,
-        metalness: 0.8
+    // Create pulsing glow shader
+    const pulsingGlowShader = {
+        uniforms: {
+            time: { value: 0 },
+            baseColor: { value: new THREE.Color(0x445566) },
+            glowColor: { value: new THREE.Color(0x00ffff) }
+        },
+        vertexShader: `
+            varying vec2 vUv;
+            varying vec3 vNormal;
+            varying vec3 vPosition;
+            
+            void main() {
+                vUv = uv;
+                vNormal = normalize(normalMatrix * normal);
+                vPosition = position;
+                gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+            }
+        `,
+        fragmentShader: `
+            uniform float time;
+            uniform vec3 baseColor;
+            uniform vec3 glowColor;
+            varying vec2 vUv;
+            varying vec3 vNormal;
+            varying vec3 vPosition;
+            
+            void main() {
+                // Create pulsing effect
+                float pulse = sin(time * 2.0) * 0.5 + 0.5;
+                
+                // Create edge glow
+                float edgeGlow = pow(1.0 - abs(dot(vNormal, vec3(0.0, 0.0, 1.0))), 2.0);
+                
+                // Mix base color with glow color based on pulse and edge glow
+                vec3 finalColor = mix(baseColor, glowColor, pulse * 0.5 + edgeGlow * 0.3);
+                
+                // Add some variation based on position
+                float positionEffect = sin(vPosition.x * 2.0 + time) * 0.1 + 
+                                     cos(vPosition.y * 2.0 + time) * 0.1;
+                
+                finalColor += glowColor * positionEffect * pulse;
+                
+                gl_FragColor = vec4(finalColor, 1.0);
+            }
+        `
+    };
+
+    // Create the pulsing material
+    const crateMaterial = new THREE.ShaderMaterial({
+        uniforms: pulsingGlowShader.uniforms,
+        vertexShader: pulsingGlowShader.vertexShader,
+        fragmentShader: pulsingGlowShader.fragmentShader,
+        side: THREE.DoubleSide
     });
     
     // Add some crates
@@ -205,21 +264,20 @@ function addSciFiProps(scene: THREE.Scene): void {
         crate.castShadow = true;
         crate.receiveShadow = true;
         scene.add(crate);
-        
-        // Add glowing accent to some crates
-        if (Math.random() > 0.7) {
-            const glowGeometry = new THREE.BoxGeometry(size * 0.2, size * 0.1, size * 0.2);
-            const glowCube = new THREE.Mesh(glowGeometry, glowMaterial);
-            glowCube.position.y = size * 0.55;
-            crate.add(glowCube);
-        }
     }
-    
+
     // Add some terminals/consoles
     for (let i = 0; i < 5; i++) {
         // Console base
         const baseGeometry = new THREE.BoxGeometry(1.2, 1.5, 0.8);
-        const base = new THREE.Mesh(baseGeometry, crateMaterial);
+        const baseMaterial = new THREE.MeshStandardMaterial({
+            color: 0x445566,
+            roughness: 0.7,
+            metalness: 0.5,
+            emissive: 0x000066,
+            emissiveIntensity: 0.8
+        });
+        const base = new THREE.Mesh(baseGeometry, baseMaterial);
         
         // Random position along walls
         let x = 0;
@@ -229,21 +287,21 @@ function addSciFiProps(scene: THREE.Scene): void {
         switch(side) {
             case 0: // North wall
                 x = (Math.random() - 0.5) * 40;
-                z = -24;
+                z = -24.1; // Slightly in front of wall
                 base.rotation.y = 0;
                 break;
             case 1: // East wall
-                x = 24;
+                x = 24.1; // Slightly in front of wall
                 z = (Math.random() - 0.5) * 40;
                 base.rotation.y = -Math.PI / 2;
                 break;
             case 2: // South wall
                 x = (Math.random() - 0.5) * 40;
-                z = 24;
+                z = 24.1; // Slightly in front of wall
                 base.rotation.y = Math.PI;
                 break;
             case 3: // West wall
-                x = -24;
+                x = -24.1; // Slightly in front of wall
                 z = (Math.random() - 0.5) * 40;
                 base.rotation.y = Math.PI / 2;
                 break;
@@ -254,14 +312,17 @@ function addSciFiProps(scene: THREE.Scene): void {
         base.receiveShadow = true;
         scene.add(base);
         
-        // Add screen
+        // Add screen with pulsing glow
         const screenGeometry = new THREE.BoxGeometry(1, 0.7, 0.1);
-        const screenMaterial = new THREE.MeshStandardMaterial({
-            color: 0x225588,
-            emissive: 0x225588,
-            emissiveIntensity: 0.5,
-            roughness: 0.3,
-            metalness: 0.8
+        const screenMaterial = new THREE.ShaderMaterial({
+            uniforms: {
+                time: { value: 0 },
+                baseColor: { value: new THREE.Color(0x225588) },
+                glowColor: { value: new THREE.Color(0x00ffff) }
+            },
+            vertexShader: pulsingGlowShader.vertexShader,
+            fragmentShader: pulsingGlowShader.fragmentShader,
+            side: THREE.DoubleSide
         });
         
         const screen = new THREE.Mesh(screenGeometry, screenMaterial);
@@ -269,6 +330,19 @@ function addSciFiProps(scene: THREE.Scene): void {
         screen.position.z = 0.35;
         base.add(screen);
     }
+
+    // Update the shader time uniform in the animation loop
+    const animate = () => {
+        requestAnimationFrame(animate);
+        crateMaterial.uniforms.time.value += 0.016; // Approximately 60fps
+        // Update screen materials time uniform
+        scene.traverse((object) => {
+            if (object instanceof THREE.Mesh && object.material instanceof THREE.ShaderMaterial) {
+                object.material.uniforms.time.value = crateMaterial.uniforms.time.value;
+            }
+        });
+    };
+    animate();
 }
 
 /**
