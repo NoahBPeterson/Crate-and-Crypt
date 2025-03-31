@@ -68,6 +68,28 @@ export function setupInputHandlers(): void {
     window.addEventListener('touchend', handleTouchEnd);
     window.addEventListener('touchmove', handleTouchMove);
     
+    // Handle window blur (losing focus)
+    window.addEventListener('blur', () => {
+        // Clear all keyboard states
+        Object.keys(inputState.keyboard).forEach(key => {
+            inputState.keyboard[key] = false;
+        });
+        
+        // Reset mouse state
+        inputState.mouse.isDown = false;
+        inputState.mouse.locked = false;
+        inputState.mouse.movementX = 0;
+        inputState.mouse.movementY = 0;
+        
+        // Reset drag state
+        inputState.drag.isActive = false;
+        
+        // If we have a player, ensure they stop moving
+        if (window.gameEngine?.playerManager?.localPlayer) {
+            window.gameEngine.playerManager.localPlayer.isMoving = false;
+        }
+    });
+    
     // Listen for game:started event - this is when we should be ready to capture pointer
     document.addEventListener('game:started', (event) => {
         console.log('Game started event received in input handler');
