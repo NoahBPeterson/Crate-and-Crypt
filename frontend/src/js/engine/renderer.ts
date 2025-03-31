@@ -326,8 +326,8 @@ function addSciFiProps(scene: THREE.Scene): void {
         });
         
         const screen = new THREE.Mesh(screenGeometry, screenMaterial);
-        screen.position.y = 0.4;
-        screen.position.z = 0.35;
+        screen.position.y = 0.3999;
+        screen.position.z = 0.3513;
         base.add(screen);
     }
 
