@@ -108,6 +108,61 @@ function createMainMenu(parent: HTMLElement): void {
     
     parent.appendChild(mainMenu);
     ui.mainMenu = mainMenu;
+
+    // Check for room ID in URL and show prompt if found
+    const urlParams = new URLSearchParams(window.location.search);
+    const roomIdFromUrl = urlParams.get('roomId');
+    if (roomIdFromUrl) {
+        // Show join prompt
+        const joinPrompt = document.createElement('div');
+        joinPrompt.id = 'join-prompt';
+        joinPrompt.style.position = 'fixed';
+        joinPrompt.style.top = '50%';
+        joinPrompt.style.left = '50%';
+        joinPrompt.style.transform = 'translate(-50%, -50%)';
+        joinPrompt.style.background = 'rgba(0, 0, 0, 0.8)';
+        joinPrompt.style.padding = '20px';
+        joinPrompt.style.borderRadius = '10px';
+        joinPrompt.style.zIndex = '2000';
+        joinPrompt.style.textAlign = 'center';
+        
+        joinPrompt.innerHTML = `
+            <h2 style="color: white; margin-top: 0;">Join Game?</h2>
+            <p style="color: white; margin: 20px 0;">Room ID: ${roomIdFromUrl}</p>
+            <div style="display: flex; justify-content: space-between; gap: 10px;">
+                <button id="decline-join" style="padding: 10px 20px; background: #444; color: white; border: none; border-radius: 5px; cursor: pointer;">No Thanks</button>
+                <button id="accept-join" style="padding: 10px 20px; background: #0066cc; color: white; border: none; border-radius: 5px; cursor: pointer;">Join</button>
+            </div>
+        `;
+        
+        document.body.appendChild(joinPrompt);
+        
+        // Add event listeners
+        document.getElementById('decline-join')?.addEventListener('click', () => {
+            document.body.removeChild(joinPrompt);
+            // Remove room ID from URL
+            const url = new URL(window.location.href);
+            url.searchParams.delete('roomId');
+            window.history.replaceState({}, '', url.toString());
+        });
+        
+        document.getElementById('accept-join')?.addEventListener('click', () => {
+            // Set flag to indicate user interaction (for pointer lock)
+            window.gameState.userInteracted = true;
+            
+            // Remove the prompt
+            document.body.removeChild(joinPrompt);
+            
+            // Hide main menu
+            hideScreen('main-menu');
+            
+            // Show game UI
+            showScreen('game-ui');
+            
+            // Start the game with the room ID
+            startGame(roomIdFromUrl);
+        });
+    }
 }
 
 /**
